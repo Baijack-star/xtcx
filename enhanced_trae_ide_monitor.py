@@ -216,7 +216,16 @@ class EnhancedTraeIDEMonitor:
             pyautogui.click(button_pos[0], button_pos[1])
             time.sleep(1)
             
+            # 将鼠标移动到安全位置，避免hover效果遮挡按钮
+            # 移动到屏幕右下角的安全区域
+            screen_width, screen_height = pyautogui.size()
+            safe_x = screen_width - 50
+            safe_y = screen_height - 50
+            pyautogui.moveTo(safe_x, safe_y)
+            time.sleep(0.5)
+            
             print(f"已发送消息: {self.input_text}")
+            print("🔄 鼠标已移动到安全位置，避免遮挡检测区域")
             return True
             
         except Exception as e:
