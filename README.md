@@ -36,13 +36,58 @@ python trae_ide_monitor.py
 
 5. 按 `Ctrl+C` 停止监控
 
-## 配置说明
+## 配置文件
 
-可以在 `TraeIDEMonitor` 类的 `__init__` 方法中修改以下参数：
+项目现在支持通过 `config.json` 文件进行配置，无需修改代码。如果配置文件不存在，程序将使用默认设置。
 
-- `monitor_interval`: 监控间隔（秒），默认15秒
-- `input_text`: 要发送的文本，默认"继续你的使命"
-- `match_threshold`: 图像匹配阈值，默认0.95（较严格，避免误检测）
+### 配置文件结构
+
+```json
+{
+  "monitor_settings": {
+    "interval_seconds": 3
+  },
+  "message_settings": {
+    "trigger_message": "继续你的使命"
+  },
+  "detection_settings": {
+    "match_threshold": 0.8,
+    "target_button_image": "target_button.png"
+  },
+  "position_settings": {
+    "input_box_x": 1670,
+    "input_box_y": 844,
+    "safe_mouse_x": 1720,
+    "safe_mouse_y": 100
+  },
+  "window_settings": {
+    "auto_activate": true,
+    "auto_minimize": true
+  }
+}
+```
+
+### 配置项说明
+
+#### 监控设置 (monitor_settings)
+- `interval_seconds`: 监控循环间隔时间（秒），默认3秒
+
+#### 消息设置 (message_settings)
+- `trigger_message`: 要发送的消息内容，默认"继续你的使命"
+
+#### 检测设置 (detection_settings)
+- `match_threshold`: 图像匹配阈值（0.0-1.0），默认0.8
+- `target_button_image`: 目标按钮图像文件路径，默认"target_button.png"
+
+#### 位置设置 (position_settings)
+- `input_box_x`: 输入框 X 坐标，默认1670
+- `input_box_y`: 输入框 Y 坐标，默认844
+- `safe_mouse_x`: 安全鼠标位置 X 坐标，默认1720
+- `safe_mouse_y`: 安全鼠标位置 Y 坐标，默认100
+
+#### 窗口设置 (window_settings)
+- `auto_activate`: 是否自动激活 Trae IDE 窗口，默认true
+- `auto_minimize`: 是否自动最小化窗口，默认true
 
 ## 工作原理
 

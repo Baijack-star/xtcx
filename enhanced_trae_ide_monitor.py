@@ -18,20 +18,12 @@ import win32gui
 import win32con
 import win32api
 import pyperclip
+import json
 
 class EnhancedTraeIDEMonitor:
-    def __init__(self):
-        # 监控间隔（秒）
-        self.monitor_interval = 15
-        
-        # 目标按钮图片路径
-        self.target_button_path = "dd.PNG"
-        
-        # 要输入的文本
-        self.input_text = "继续你的使命"
-        
-        # 图像匹配阈值
-        self.match_threshold = 0.95
+    def __init__(self, config_file="config.json"):
+        # 加载配置文件
+        self.load_config(config_file)
         
         # Trae IDE窗口标题关键词
         self.trae_window_keywords = ["Trae", "trae", "IDE", "ide"]
@@ -43,8 +35,65 @@ class EnhancedTraeIDEMonitor:
         print("增强版Trae IDE监控器已启动...")
         print(f"监控间隔: {self.monitor_interval}秒")
         print(f"目标文本: {self.input_text}")
+        print(f"匹配阈值: {self.match_threshold}")
         print("具备窗口自动激活功能")
         print("按Ctrl+C停止监控")
+    
+    def load_config(self, config_file):
+        """
+        加载配置文件
+        """
+        try:
+            if os.path.exists(config_file):
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                
+                # 监控设置
+                self.monitor_interval = config.get('monitor_settings', {}).get('interval_seconds', 15)
+                
+                # 消息设置
+                self.input_text = config.get('message_settings', {}).get('trigger_message', '继续你的使命')
+                
+                # 检测设置
+                detection_settings = config.get('detection_settings', {})
+                self.match_threshold = detection_settings.get('match_threshold', 0.95)
+                self.target_button_path = detection_settings.get('target_button_image', 'dd.PNG')
+                
+                # 位置设置
+                position_settings = config.get('position_settings', {})
+                self.input_box_x = position_settings.get('input_box_x', 1670)
+                self.input_box_y = position_settings.get('input_box_y', 844)
+                self.safe_mouse_x = position_settings.get('safe_mouse_x', 1720)
+                self.safe_mouse_y = position_settings.get('safe_mouse_y', 100)
+                
+                # 窗口设置
+                window_settings = config.get('window_settings', {})
+                self.auto_minimize = window_settings.get('auto_minimize', True)
+                self.auto_activate = window_settings.get('auto_activate', True)
+                
+                print(f"✅ 配置文件 {config_file} 加载成功")
+            else:
+                print(f"⚠️  配置文件 {config_file} 不存在，使用默认配置")
+                self.use_default_config()
+        except Exception as e:
+            print(f"❌ 加载配置文件失败: {e}")
+            print("使用默认配置")
+            self.use_default_config()
+    
+    def use_default_config(self):
+        """
+        使用默认配置
+        """
+        self.monitor_interval = 15
+        self.input_text = "继续你的使命"
+        self.match_threshold = 0.95
+        self.target_button_path = "dd.PNG"
+        self.input_box_x = 1670
+        self.input_box_y = 844
+        self.safe_mouse_x = 1720
+        self.safe_mouse_y = 100
+        self.auto_minimize = True
+        self.auto_activate = True
     
     def find_trae_window(self):
         """
@@ -171,14 +220,11 @@ class EnhancedTraeIDEMonitor:
     
     def find_input_area(self, button_pos):
         """
-        根据按钮位置计算输入框位置
+        根据按钮位置推算输入框位置或使用配置的固定位置
         """
-        # 使用固定坐标 (1670, 844)
-        input_x = 1670
-        input_y = 844
-        
-        print(f"按钮位置: {button_pos}, 使用固定输入框位置: ({input_x}, {input_y})")
-        return (input_x, input_y)
+        # 使用配置文件中的固定输入框位置
+        print(f"按钮位置: {button_pos}, 使用固定输入框位置: ({self.input_box_x}, {self.input_box_y})")
+        return (self.input_box_x, self.input_box_y)
     
     def send_message(self, button_pos):
         """
@@ -217,11 +263,8 @@ class EnhancedTraeIDEMonitor:
             time.sleep(1)
             
             # 将鼠标移动到安全位置，避免hover效果遮挡按钮
-            # 移动到屏幕右上角的安全区域，避免触发任务栏和系统托盘
-            screen_width, screen_height = pyautogui.size()
-            safe_x = screen_width - 200  # 距离右边缘200像素
-            safe_y = 100  # 距离顶部100像素
-            pyautogui.moveTo(safe_x, safe_y)
+            # 使用配置文件中的安全位置
+            pyautogui.moveTo(self.safe_mouse_x, self.safe_mouse_y)
             time.sleep(0.5)
             
             print(f"已发送消息: {self.input_text}")
@@ -240,11 +283,12 @@ class EnhancedTraeIDEMonitor:
             while True:
                 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] 正在监控...")
                 
-                # 首先尝试激活Trae IDE窗口
-                if not self.activate_trae_window():
-                    print("⚠️  无法激活Trae IDE窗口，将在下次循环重试")
-                    time.sleep(self.monitor_interval)
-                    continue
+                # 根据配置决定是否激活Trae IDE窗口
+                if self.auto_activate:
+                    if not self.activate_trae_window():
+                        print("⚠️  无法激活Trae IDE窗口，将在下次循环重试")
+                        time.sleep(self.monitor_interval)
+                        continue
                 
                 # 查找目标按钮
                 button_pos = self.find_button_on_screen()
@@ -254,17 +298,20 @@ class EnhancedTraeIDEMonitor:
                     # 发送消息
                     if self.send_message(button_pos):
                         print("消息发送成功")
-                        # 发送完成后最小化窗口，避免干扰桌面操作
-                        self.minimize_trae_window()
+                        # 根据配置决定是否最小化窗口
+                        if self.auto_minimize:
+                            self.minimize_trae_window()
                         print("等待下次监控...")
                     else:
                         print("消息发送失败")
-                        # 即使发送失败也最小化窗口
-                        self.minimize_trae_window()
+                        # 根据配置决定是否最小化窗口
+                        if self.auto_minimize:
+                            self.minimize_trae_window()
                 else:
                     print("未发现目标按钮，AI助手可能正在工作中...")
-                    # 未发现按钮时也最小化窗口，避免干扰
-                    self.minimize_trae_window()
+                    # 根据配置决定是否最小化窗口
+                    if self.auto_minimize:
+                        self.minimize_trae_window()
                 
                 # 等待下次监控
                 print(f"等待 {self.monitor_interval} 秒后继续监控...\n")

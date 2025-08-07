@@ -1,0 +1,27 @@
+{
+  "monitor_settings": {
+    "interval_seconds": 3,
+    "description": "监控循环间隔时间（秒）"
+  },
+  "message_settings": {
+    "trigger_message": "继续你的使命",
+    "description": "检测到目标按钮时发送的消息内容"
+  },
+  "detection_settings": {
+    "match_threshold": 0.9,
+    "target_button_image": "dd.PNG",
+    "description": "图像检测相关配置"
+  },
+  "position_settings": {
+    "input_box_x": 1670,
+    "input_box_y": 844,
+    "safe_mouse_x": 1720,
+    "safe_mouse_y": 100,
+    "description": "界面位置相关配置"
+  },
+  "window_settings": {
+    "auto_minimize": true,
+    "auto_activate": true,
+    "description": "窗口管理相关配置"
+  }
+}
