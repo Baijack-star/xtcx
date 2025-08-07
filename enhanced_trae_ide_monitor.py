@@ -217,10 +217,10 @@ class EnhancedTraeIDEMonitor:
             time.sleep(1)
             
             # 将鼠标移动到安全位置，避免hover效果遮挡按钮
-            # 移动到屏幕右下角的安全区域
+            # 移动到屏幕右上角的安全区域，避免触发任务栏和系统托盘
             screen_width, screen_height = pyautogui.size()
-            safe_x = screen_width - 50
-            safe_y = screen_height - 50
+            safe_x = screen_width - 200  # 距离右边缘200像素
+            safe_y = 100  # 距离顶部100像素
             pyautogui.moveTo(safe_x, safe_y)
             time.sleep(0.5)
             
