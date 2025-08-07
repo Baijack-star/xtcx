@@ -109,6 +109,28 @@ class EnhancedTraeIDEMonitor:
             print(f"❌ 激活窗口时发生错误: {e}")
             return False
     
+    def minimize_trae_window(self):
+        """
+        将Trae IDE窗口最小化
+        返回: 是否成功最小化
+        """
+        hwnd = self.find_trae_window()
+        
+        if not hwnd:
+            print("❌ 未找到Trae IDE窗口，无法最小化")
+            return False
+        
+        try:
+            print("🔽 正在最小化Trae IDE窗口...")
+            win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
+            time.sleep(1)
+            print("✅ Trae IDE窗口已最小化")
+            return True
+            
+        except Exception as e:
+            print(f"❌ 最小化窗口时发生错误: {e}")
+            return False
+    
     def find_button_on_screen(self):
         """
         在屏幕上查找目标按钮
@@ -222,11 +244,18 @@ class EnhancedTraeIDEMonitor:
                     print(f"发现目标按钮位置: {button_pos}")
                     # 发送消息
                     if self.send_message(button_pos):
-                        print("消息发送成功，等待下次监控...")
+                        print("消息发送成功")
+                        # 发送完成后最小化窗口，避免干扰桌面操作
+                        self.minimize_trae_window()
+                        print("等待下次监控...")
                     else:
                         print("消息发送失败")
+                        # 即使发送失败也最小化窗口
+                        self.minimize_trae_window()
                 else:
                     print("未发现目标按钮，AI助手可能正在工作中...")
+                    # 未发现按钮时也最小化窗口，避免干扰
+                    self.minimize_trae_window()
                 
                 # 等待下次监控
                 print(f"等待 {self.monitor_interval} 秒后继续监控...\n")
