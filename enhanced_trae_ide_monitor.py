@@ -126,18 +126,31 @@ class EnhancedTraeIDEMonitor:
     def detect_interfering_windows(self):
         """
         检测可能干扰Trae IDE激活的窗口
-        返回: 干扰窗口列表
+        返回: 干扰窗口列表，包含窗口句柄、标题和当前状态
         """
         interfering_keywords = ["Chrome", "chrome", "Firefox", "firefox", "Edge", "edge", 
                                "浏览器", "Browser", "browser"]
         
         def enum_windows_callback(hwnd, windows):
-            if win32gui.IsWindowVisible(hwnd) and not win32gui.IsIconic(hwnd):
+            if win32gui.IsWindowVisible(hwnd):
                 window_title = win32gui.GetWindowText(hwnd)
                 if window_title:
                     for keyword in interfering_keywords:
                         if keyword in window_title:
-                            windows.append((hwnd, window_title))
+                            # 记录窗口的当前状态
+                            is_minimized = win32gui.IsIconic(hwnd)
+                            placement = win32gui.GetWindowPlacement(hwnd)
+                            # 检查是否最大化：placement[1] == win32con.SW_SHOWMAXIMIZED
+                            is_maximized = placement[1] == win32con.SW_SHOWMAXIMIZED
+                            
+                            windows.append({
+                                'hwnd': hwnd,
+                                'title': window_title,
+                                'is_minimized': is_minimized,
+                                'is_maximized': is_maximized,
+                                'placement': placement,
+                                'was_foreground': win32gui.GetForegroundWindow() == hwnd
+                            })
                             break
             return True
         
@@ -145,30 +158,104 @@ class EnhancedTraeIDEMonitor:
         win32gui.EnumWindows(enum_windows_callback, windows)
         return windows
     
-    def handle_interfering_windows(self):
+    def handle_interfering_windows(self, restore_mode=False, saved_states=None):
         """
-        处理干扰窗口（可选择最小化或关闭）
-        返回: 是否成功处理
+        智能处理干扰窗口，支持状态保存和恢复
+        
+        Args:
+            restore_mode: 是否为恢复模式
+            saved_states: 保存的窗口状态（恢复模式时使用）
+        
+        Returns:
+            如果是保存模式，返回保存的窗口状态；如果是恢复模式，返回是否成功恢复
+        """
+        if restore_mode and saved_states:
+            return self._restore_window_states(saved_states)
+        else:
+            return self._save_and_handle_interfering_windows()
+    
+    def _save_and_handle_interfering_windows(self):
+        """
+        保存干扰窗口状态并进行温和处理
+        返回: 保存的窗口状态列表
         """
         interfering_windows = self.detect_interfering_windows()
         
         if not interfering_windows:
-            return True
+            return []
         
         print(f"🔍 检测到 {len(interfering_windows)} 个可能的干扰窗口:")
-        for hwnd, title in interfering_windows:
-            print(f"   - {title}")
+        for window in interfering_windows:
+            print(f"   - {window['title']} (最小化: {window['is_minimized']}, 最大化: {window['is_maximized']})")
         
-        # 尝试最小化干扰窗口
-        for hwnd, title in interfering_windows:
+        # 只处理当前在前台且未最小化的干扰窗口
+        handled_windows = []
+        for window in interfering_windows:
+            if not window['is_minimized'] and window['was_foreground']:
+                try:
+                    print(f"🔽 温和处理干扰窗口: {window['title']}")
+                    # 使用更温和的方式：将窗口置于后台而不是最小化
+                    win32gui.SetWindowPos(window['hwnd'], win32con.HWND_BOTTOM, 0, 0, 0, 0, 
+                                         win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_NOACTIVATE)
+                    time.sleep(0.2)
+                    handled_windows.append(window)
+                except Exception as e:
+                    print(f"   ⚠️  处理失败: {e}")
+            else:
+                # 记录但不处理已最小化或非前台的窗口
+                handled_windows.append(window)
+        
+        return handled_windows
+    
+    def _restore_window_states(self, saved_states):
+        """
+        恢复窗口的原始状态
+        
+        Args:
+            saved_states: 之前保存的窗口状态列表
+        
+        Returns:
+            是否成功恢复所有窗口状态
+        """
+        if not saved_states:
+            return True
+        
+        print(f"🔄 正在恢复 {len(saved_states)} 个窗口的原始状态...")
+        success_count = 0
+        
+        for window in saved_states:
             try:
-                print(f"🔽 尝试最小化干扰窗口: {title}")
-                win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
-                time.sleep(0.3)
+                hwnd = window['hwnd']
+                # 检查窗口是否仍然存在
+                if not win32gui.IsWindow(hwnd):
+                    continue
+                
+                print(f"   🔄 恢复窗口: {window['title']}")
+                
+                # 恢复窗口位置和状态
+                if window['was_foreground'] and not window['is_minimized']:
+                    # 如果原来是前台窗口且未最小化，则恢复到前台
+                    if window['is_maximized']:
+                        win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
+                    else:
+                        win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+                    
+                    # 尝试恢复为前台窗口（但不强制）
+                    try:
+                        win32gui.SetForegroundWindow(hwnd)
+                    except:
+                        # 如果无法设置为前台，至少确保窗口可见
+                        win32gui.SetWindowPos(hwnd, win32con.HWND_TOP, 0, 0, 0, 0, 
+                                             win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_NOACTIVATE)
+                
+                success_count += 1
+                time.sleep(0.1)
+                
             except Exception as e:
-                print(f"   ⚠️  最小化失败: {e}")
+                print(f"   ⚠️  恢复窗口 {window['title']} 失败: {e}")
         
-        return True
+        print(f"✅ 成功恢复 {success_count}/{len(saved_states)} 个窗口状态")
+        return success_count == len(saved_states)
     
     def activate_trae_window(self):
         """
@@ -386,14 +473,20 @@ class EnhancedTraeIDEMonitor:
             while True:
                 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] 正在监控...")
                 
+                # 保存干扰窗口状态的变量
+                saved_window_states = None
+                
                 # 根据配置决定是否激活Trae IDE窗口
                 if self.auto_activate:
-                    # 首先处理可能的干扰窗口
-                    self.handle_interfering_windows()
+                    # 首先保存并处理可能的干扰窗口
+                    saved_window_states = self._save_and_handle_interfering_windows()
                     
                     # 然后尝试激活Trae IDE窗口
                     if not self.activate_trae_window():
                         print("⚠️  无法激活Trae IDE窗口，将在下次循环重试")
+                        # 如果激活失败，恢复窗口状态
+                        if saved_window_states:
+                            self._restore_window_states(saved_window_states)
                         time.sleep(self.monitor_interval)
                         continue
                 
@@ -419,6 +512,11 @@ class EnhancedTraeIDEMonitor:
                     # 根据配置决定是否最小化窗口
                     if self.auto_minimize:
                         self.minimize_trae_window()
+                
+                # 恢复之前保存的窗口状态
+                if saved_window_states:
+                    print("🔄 恢复其他应用的窗口状态...")
+                    self._restore_window_states(saved_window_states)
                 
                 # 等待下次监控
                 print(f"等待 {self.monitor_interval} 秒后继续监控...\n")
