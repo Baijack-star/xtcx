@@ -1,6 +1,6 @@
 {
   "monitor_settings": {
-    "interval_seconds": 3,
+    "interval_seconds": 15,
     "description": "监控循环间隔时间（秒）"
   },
   "message_settings": {

@@ -123,9 +123,56 @@ class EnhancedTraeIDEMonitor:
         
         return None
     
+    def detect_interfering_windows(self):
+        """
+        检测可能干扰Trae IDE激活的窗口
+        返回: 干扰窗口列表
+        """
+        interfering_keywords = ["Chrome", "chrome", "Firefox", "firefox", "Edge", "edge", 
+                               "浏览器", "Browser", "browser"]
+        
+        def enum_windows_callback(hwnd, windows):
+            if win32gui.IsWindowVisible(hwnd) and not win32gui.IsIconic(hwnd):
+                window_title = win32gui.GetWindowText(hwnd)
+                if window_title:
+                    for keyword in interfering_keywords:
+                        if keyword in window_title:
+                            windows.append((hwnd, window_title))
+                            break
+            return True
+        
+        windows = []
+        win32gui.EnumWindows(enum_windows_callback, windows)
+        return windows
+    
+    def handle_interfering_windows(self):
+        """
+        处理干扰窗口（可选择最小化或关闭）
+        返回: 是否成功处理
+        """
+        interfering_windows = self.detect_interfering_windows()
+        
+        if not interfering_windows:
+            return True
+        
+        print(f"🔍 检测到 {len(interfering_windows)} 个可能的干扰窗口:")
+        for hwnd, title in interfering_windows:
+            print(f"   - {title}")
+        
+        # 尝试最小化干扰窗口
+        for hwnd, title in interfering_windows:
+            try:
+                print(f"🔽 尝试最小化干扰窗口: {title}")
+                win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
+                time.sleep(0.3)
+            except Exception as e:
+                print(f"   ⚠️  最小化失败: {e}")
+        
+        return True
+    
     def activate_trae_window(self):
         """
-        激活Trae IDE窗口
+        激活Trae IDE窗口（增强版，解决窗口焦点竞争问题）
         返回: 是否成功激活
         """
         hwnd = self.find_trae_window()
@@ -135,24 +182,80 @@ class EnhancedTraeIDEMonitor:
             return False
         
         try:
-            # 检查窗口是否最小化
-            if win32gui.IsIconic(hwnd):
-                print("🔄 检测到Trae IDE窗口被最小化，正在恢复...")
-                win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-                time.sleep(1)
+            # 获取当前前台窗口
+            current_foreground = win32gui.GetForegroundWindow()
+            current_title = win32gui.GetWindowText(current_foreground) if current_foreground else "未知"
+            print(f"🔍 当前前台窗口: {current_title}")
             
-            # 将窗口置于最前
-            print("🔄 正在激活Trae IDE窗口...")
-            win32gui.SetForegroundWindow(hwnd)
+            # 强制激活策略 - 多重尝试
+            max_attempts = 3
+            for attempt in range(max_attempts):
+                print(f"🔄 尝试激活Trae IDE窗口 (第{attempt + 1}次)...")
+                
+                # 步骤1: 如果窗口最小化，先恢复
+                if win32gui.IsIconic(hwnd):
+                    print("   📤 恢复最小化窗口...")
+                    win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+                    time.sleep(0.5)
+                
+                # 步骤2: 强制显示窗口
+                win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
+                time.sleep(0.3)
+                
+                # 步骤3: 尝试多种激活方法
+                try:
+                    # 方法1: 标准激活
+                    win32gui.SetForegroundWindow(hwnd)
+                    time.sleep(0.3)
+                    
+                    # 方法2: 如果失败，使用更强力的方法
+                    if win32gui.GetForegroundWindow() != hwnd:
+                        print("   🔧 使用强制激活方法...")
+                        # 模拟Alt+Tab切换（有时能绕过焦点限制）
+                        win32gui.SetWindowPos(hwnd, win32con.HWND_TOPMOST, 0, 0, 0, 0, 
+                                             win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
+                        time.sleep(0.2)
+                        win32gui.SetWindowPos(hwnd, win32con.HWND_NOTOPMOST, 0, 0, 0, 0, 
+                                             win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
+                        win32gui.SetForegroundWindow(hwnd)
+                        time.sleep(0.3)
+                    
+                    # 方法3: 最后尝试点击窗口来激活
+                    if win32gui.GetForegroundWindow() != hwnd:
+                        print("   🖱️  尝试点击窗口激活...")
+                        rect = win32gui.GetWindowRect(hwnd)
+                        center_x = (rect[0] + rect[2]) // 2
+                        center_y = (rect[1] + rect[3]) // 2
+                        # 保存当前鼠标位置
+                        original_pos = pyautogui.position()
+                        # 点击窗口中心
+                        pyautogui.click(center_x, center_y)
+                        time.sleep(0.3)
+                        # 恢复鼠标位置
+                        pyautogui.moveTo(original_pos.x, original_pos.y)
+                        
+                except Exception as inner_e:
+                    print(f"   ⚠️  激活方法异常: {inner_e}")
+                
+                # 步骤4: 最大化窗口
+                win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
+                time.sleep(0.5)
+                
+                # 验证激活是否成功
+                current_foreground = win32gui.GetForegroundWindow()
+                if current_foreground == hwnd:
+                    print(f"✅ Trae IDE窗口已成功激活并最大化 (第{attempt + 1}次尝试成功)")
+                    return True
+                else:
+                    current_title = win32gui.GetWindowText(current_foreground) if current_foreground else "未知"
+                    print(f"   ⚠️  激活失败，当前前台窗口仍为: {current_title}")
+                    if attempt < max_attempts - 1:
+                        print(f"   🔄 等待1秒后重试...")
+                        time.sleep(1)
             
-            # 最大化窗口以确保最佳检测效果
-            win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
-            
-            # 等待窗口状态稳定
-            time.sleep(2)
-            
-            print("✅ Trae IDE窗口已激活并最大化")
-            return True
+            print(f"❌ 经过{max_attempts}次尝试，仍无法激活Trae IDE窗口")
+            print("💡 建议手动点击Trae IDE窗口或关闭干扰的应用程序")
+            return False
             
         except Exception as e:
             print(f"❌ 激活窗口时发生错误: {e}")
@@ -285,6 +388,10 @@ class EnhancedTraeIDEMonitor:
                 
                 # 根据配置决定是否激活Trae IDE窗口
                 if self.auto_activate:
+                    # 首先处理可能的干扰窗口
+                    self.handle_interfering_windows()
+                    
+                    # 然后尝试激活Trae IDE窗口
                     if not self.activate_trae_window():
                         print("⚠️  无法激活Trae IDE窗口，将在下次循环重试")
                         time.sleep(self.monitor_interval)
