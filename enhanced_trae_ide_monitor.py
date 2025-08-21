@@ -104,11 +104,9 @@ class EnhancedTraeIDEMonitor:
             if win32gui.IsWindowVisible(hwnd):
                 window_title = win32gui.GetWindowText(hwnd)
                 if window_title:
-                    # 检查窗口标题是否包含Trae相关关键词
-                    for keyword in self.trae_window_keywords:
-                        if keyword in window_title:
-                            windows.append((hwnd, window_title))
-                            break
+                    # 更精确的Trae窗口识别逻辑
+                    if self._is_trae_window(window_title):
+                        windows.append((hwnd, window_title))
             return True
         
         windows = []
@@ -122,6 +120,46 @@ class EnhancedTraeIDEMonitor:
             return windows[0][0]
         
         return None
+    
+    def _is_trae_window(self, window_title):
+        """
+        判断窗口标题是否为Trae IDE窗口
+        使用更精确的匹配规则，避免误识别
+        """
+        window_title_lower = window_title.lower()
+        
+        # 排除明显不是Trae的窗口
+        exclude_keywords = [
+            '命令提示符', 'cmd', 'powershell', 'terminal',
+            'chrome', 'firefox', 'edge', 'browser',
+            'explorer', 'notepad', 'word', 'excel',
+            'outlook', 'teams', 'zoom', 'skype'
+        ]
+        
+        for exclude in exclude_keywords:
+            if exclude in window_title_lower:
+                return False
+        
+        # 精确匹配Trae IDE窗口
+        # 1. 包含"Trae"且不包含其他应用名称
+        if 'trae' in window_title_lower:
+            # 确保是真正的Trae IDE窗口，而不是包含"trae"的其他窗口
+            trae_indicators = [
+                '- trae',  # 典型的Trae IDE窗口格式
+                'trae -',  # 另一种格式
+                'trae ide',  # 明确的IDE标识
+                '.py - trae',  # Python文件在Trae中打开
+                '.js - trae',  # JavaScript文件
+                '.md - trae',  # Markdown文件
+                '.json - trae',  # JSON文件
+                '.txt - trae',  # 文本文件
+            ]
+            
+            for indicator in trae_indicators:
+                if indicator in window_title_lower:
+                    return True
+        
+        return False
     
     def detect_interfering_windows(self):
         """
