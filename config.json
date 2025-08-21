@@ -1,6 +1,6 @@
 {
   "monitor_settings": {
-    "interval_seconds": 180,
+    "interval_seconds": 30,
     "description": "监控循环间隔时间（秒）"
   },
   "message_settings": {
@@ -13,8 +13,8 @@
     "description": "图像检测相关配置"
   },
   "position_settings": {
-    "input_box_x": 1670,
-    "input_box_y": 844,
+    "input_box_x": 350,
+    "input_box_y": 870,
     "safe_mouse_x": 1720,
     "safe_mouse_y": 100,
     "description": "界面位置相关配置"
