@@ -19,6 +19,9 @@ import win32con
 import win32api
 import pyperclip
 import json
+import threading
+from flask import Flask, jsonify, request
+from flask_cors import CORS
 
 class EnhancedTraeIDEMonitor:
     def __init__(self, config_file="config.json"):
@@ -27,6 +30,16 @@ class EnhancedTraeIDEMonitor:
         
         # Trae IDE窗口标题关键词
         self.trae_window_keywords = ["Trae", "trae", "IDE", "ide"]
+        
+        # 线程控制变量
+        self.monitor_running = False
+        self.monitor_paused = False
+        self.monitor_thread = None
+        self.api_thread = None
+        
+        # API服务器配置
+        self.api_port = getattr(self, 'api_port', 5000)
+        self.api_host = getattr(self, 'api_host', '127.0.0.1')
         
         # 设置pyautogui的安全设置
         pyautogui.FAILSAFE = True
@@ -550,7 +563,14 @@ class EnhancedTraeIDEMonitor:
         主监控循环
         """
         try:
-            while True:
+            self.monitor_running = True
+            while self.monitor_running:
+                # 检查是否暂停
+                if self.monitor_paused:
+                    print("[监控已暂停] 等待恢复...")
+                    time.sleep(1)
+                    continue
+                    
                 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] 正在监控...")
                 
                 # 保存干扰窗口状态的变量
@@ -623,13 +643,135 @@ class EnhancedTraeIDEMonitor:
             print("\n监控已停止")
         except Exception as e:
             print(f"监控过程中发生错误: {e}")
+        finally:
+            self.monitor_running = False
+            print("监控循环已退出")
+    
+    def create_api_server(self):
+        """
+        创建API服务器
+        """
+        app = Flask(__name__)
+        CORS(app)
+        
+        @app.route('/status', methods=['GET'])
+        def get_status():
+            """获取监控状态"""
+            return jsonify({
+                'running': self.monitor_running,
+                'paused': self.monitor_paused,
+                'thread_alive': self.monitor_thread.is_alive() if self.monitor_thread else False
+            })
+        
+        @app.route('/start', methods=['POST'])
+        def start_monitor():
+            """启动监控"""
+            if not self.monitor_running:
+                self.monitor_thread = threading.Thread(target=self.monitor_loop)
+                self.monitor_thread.daemon = True
+                self.monitor_thread.start()
+                return jsonify({'message': '监控已启动', 'success': True})
+            else:
+                return jsonify({'message': '监控已在运行中', 'success': False})
+        
+        @app.route('/stop', methods=['POST'])
+        def stop_monitor():
+            """停止监控"""
+            self.monitor_running = False
+            self.monitor_paused = False
+            return jsonify({'message': '监控已停止', 'success': True})
+        
+        @app.route('/pause', methods=['POST'])
+        def pause_monitor():
+            """暂停监控"""
+            if self.monitor_running:
+                self.monitor_paused = True
+                return jsonify({'message': '监控已暂停', 'success': True})
+            else:
+                return jsonify({'message': '监控未运行', 'success': False})
+        
+        @app.route('/resume', methods=['POST'])
+        def resume_monitor():
+            """恢复监控"""
+            if self.monitor_running and self.monitor_paused:
+                self.monitor_paused = False
+                return jsonify({'message': '监控已恢复', 'success': True})
+            else:
+                return jsonify({'message': '监控未暂停或未运行', 'success': False})
+        
+        @app.route('/restart', methods=['POST'])
+        def restart_monitor():
+            """重启监控"""
+            # 停止当前监控
+            self.monitor_running = False
+            self.monitor_paused = False
+            
+            # 等待线程结束
+            if self.monitor_thread and self.monitor_thread.is_alive():
+                self.monitor_thread.join(timeout=5)
+            
+            # 启动新的监控线程
+            self.monitor_thread = threading.Thread(target=self.monitor_loop)
+            self.monitor_thread.daemon = True
+            self.monitor_thread.start()
+            
+            return jsonify({'message': '监控已重启', 'success': True})
+        
+        return app
+    
+    def start_api_server(self):
+        """
+        启动API服务器
+        """
+        app = self.create_api_server()
+        print(f"API服务器启动在 http://{self.api_host}:{self.api_port}")
+        print("可用接口:")
+        print("  GET  /status  - 获取监控状态")
+        print("  POST /start   - 启动监控")
+        print("  POST /stop    - 停止监控")
+        print("  POST /pause   - 暂停监控")
+        print("  POST /resume  - 恢复监控")
+        print("  POST /restart - 重启监控")
+        app.run(host=self.api_host, port=self.api_port, debug=False, use_reloader=False)
+    
+    def start_with_api(self):
+        """
+        启动监控器和API服务器
+        """
+        # 启动API服务器线程
+        self.api_thread = threading.Thread(target=self.start_api_server)
+        self.api_thread.daemon = True
+        self.api_thread.start()
+        
+        # 启动监控线程
+        self.monitor_thread = threading.Thread(target=self.monitor_loop)
+        self.monitor_thread.daemon = True
+        self.monitor_thread.start()
+        
+        try:
+            # 主线程等待
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("\n正在停止服务...")
+            self.monitor_running = False
+            self.monitor_paused = False
 
 def main():
     """
     主函数
     """
+    import sys
+    
     monitor = EnhancedTraeIDEMonitor()
-    monitor.monitor_loop()
+    
+    # 检查命令行参数
+    if len(sys.argv) > 1 and sys.argv[1] == '--api':
+        print("启动API模式...")
+        monitor.start_with_api()
+    else:
+        print("启动普通模式...")
+        monitor.monitor_loop()
 
 if __name__ == "__main__":
     main()
