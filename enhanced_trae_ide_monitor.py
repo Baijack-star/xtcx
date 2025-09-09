@@ -58,6 +58,7 @@ class EnhancedTraeIDEMonitor:
                 detection_settings = config.get('detection_settings', {})
                 self.match_threshold = detection_settings.get('match_threshold', 0.95)
                 self.target_button_path = detection_settings.get('target_button_image', 'dd.PNG')
+                self.busy_state_images = detection_settings.get('busy_state_images', ['pp.PNG', 'kk.PNG'])
                 
                 # 位置设置
                 position_settings = config.get('position_settings', {})
@@ -88,6 +89,7 @@ class EnhancedTraeIDEMonitor:
         self.input_text = "继续你的使命"
         self.match_threshold = 0.95
         self.target_button_path = "dd.PNG"
+        self.busy_state_images = ['pp.PNG', 'kk.PNG']
         self.input_box_x = 1670
         self.input_box_y = 844
         self.safe_mouse_x = 1720
@@ -446,6 +448,46 @@ class EnhancedTraeIDEMonitor:
             print(f"❌ 查找按钮时发生错误: {e}")
             return None
     
+    def find_busy_state_button(self):
+        """
+        在繁忙状态下查找特定的按钮图像（pp.PNG或kk.PNG）
+        返回: (image_name, x, y) 或 None
+        """
+        try:
+            # 截取全屏
+            screenshot = pyautogui.screenshot()
+            screenshot_np = np.array(screenshot)
+            screenshot_cv = cv2.cvtColor(screenshot_np, cv2.COLOR_RGB2BGR)
+            
+            # 遍历检测每个繁忙状态图像
+            for image_name in self.busy_state_images:
+                if not os.path.exists(image_name):
+                    print(f"⚠️  警告: 找不到繁忙状态图片 {image_name}")
+                    continue
+                
+                target_img = cv2.imread(image_name)
+                if target_img is None:
+                    print(f"⚠️  警告: 无法读取繁忙状态图片 {image_name}")
+                    continue
+                
+                # 模板匹配
+                result = cv2.matchTemplate(screenshot_cv, target_img, cv2.TM_CCOEFF_NORMED)
+                min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+                
+                if max_val >= self.match_threshold:
+                    # 计算按钮中心坐标
+                    h, w = target_img.shape[:2]
+                    center_x = max_loc[0] + w // 2
+                    center_y = max_loc[1] + h // 2
+                    print(f"✅ 在繁忙状态下检测到 {image_name}，位置: ({center_x}, {center_y})，匹配度: {max_val:.3f}")
+                    return (image_name, center_x, center_y)
+            
+            return None
+            
+        except Exception as e:
+            print(f"❌ 查找繁忙状态按钮时发生错误: {e}")
+            return None
+    
     def find_input_area(self, button_pos):
         """
         根据按钮位置推算输入框位置或使用配置的固定位置
@@ -547,6 +589,23 @@ class EnhancedTraeIDEMonitor:
                             self.minimize_trae_window()
                 else:
                     print("未发现目标按钮，AI助手可能正在工作中...")
+                    
+                    # 在繁忙状态下检测特定按钮
+                    busy_button_result = self.find_busy_state_button()
+                    if busy_button_result:
+                        image_name, x, y = busy_button_result
+                        print(f"🎯 检测到繁忙状态按钮 {image_name}，准备点击位置: ({x}, {y})")
+                        
+                        try:
+                            # 点击检测到的按钮
+                            pyautogui.click(x, y)
+                            print(f"✅ 已点击 {image_name} 按钮")
+                            time.sleep(1)  # 等待点击生效
+                        except Exception as e:
+                            print(f"❌ 点击 {image_name} 按钮时发生错误: {e}")
+                    else:
+                        print("未检测到任何繁忙状态按钮")
+                    
                     # 根据配置决定是否最小化窗口
                     if self.auto_minimize:
                         self.minimize_trae_window()

@@ -1,6 +1,6 @@
 {
   "monitor_settings": {
-    "interval_seconds": 30,
+    "interval_seconds": 180,
     "description": "监控循环间隔时间（秒）"
   },
   "message_settings": {
@@ -10,7 +10,8 @@
   "detection_settings": {
     "match_threshold": 0.9,
     "target_button_image": "dd.PNG",
-    "description": "图像检测相关配置"
+    "busy_state_images": ["pp.PNG", "kk.PNG"],
+    "description": "图像检测相关配置，包括闲置状态检测和繁忙状态下的额外检测"
   },
   "position_settings": {
     "input_box_x": 350,
