@@ -1,9 +1,10 @@
+# Windows专用依赖文件
 pyautogui>=0.9.50
 opencv-python>=4.8.0
 Pillow>=10.0.0
 numpy>=1.24.0
 pyperclip>=1.8.0
-# pywin32>=306  # Windows specific, comment out for cross-platform compatibility
+pywin32>=306
 Flask>=2.3.0
 Flask-CORS>=4.0.0
 requests>=2.31.0
