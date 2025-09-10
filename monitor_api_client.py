@@ -69,6 +69,9 @@ def main():
     print("\n1. 获取当前状态:")
     status = client.get_status()
     print(json.dumps(status, indent=2, ensure_ascii=False))
+
+    print("\n等待3秒...")
+    time.sleep(3)
     
     print("\n2. 暂停监控:")
     result = client.pause_monitor()
@@ -77,17 +80,17 @@ def main():
     print("\n等待3秒...")
     time.sleep(3)
     
-    print("\n3. 恢复监控:")
-    result = client.resume_monitor()
-    print(json.dumps(result, indent=2, ensure_ascii=False))
+    #print("\n3. 恢复监控:")
+    #result = client.resume_monitor()
+    #print(json.dumps(result, indent=2, ensure_ascii=False))
     
-    print("\n4. 获取状态确认:")
-    status = client.get_status()
-    print(json.dumps(status, indent=2, ensure_ascii=False))
+    #print("\n4. 获取状态确认:")
+    #status = client.get_status()
+    #print(json.dumps(status, indent=2, ensure_ascii=False))
     
-    print("\n5. 重启监控:")
-    result = client.restart_monitor()
-    print(json.dumps(result, indent=2, ensure_ascii=False))
+    #print("\n5. 重启监控:")
+    #result = client.restart_monitor()
+    #print(json.dumps(result, indent=2, ensure_ascii=False))
     
     print("\n演示完成！")
 
