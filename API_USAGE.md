@@ -58,7 +58,7 @@ API模式会同时启动：
 
 ### 4. 暂停监控
 - **URL**: `POST /pause`
-- **描述**: 暂停监控程序（不退出，可恢复）
+- **描述**: 暂停监控程序（保持线程运行但跳过监控逻辑）
 - **响应示例**:
 ```json
 {
@@ -80,7 +80,7 @@ API模式会同时启动：
 
 ### 6. 重启监控
 - **URL**: `POST /restart`
-- **描述**: 重启监控程序（停止后重新启动）
+- **描述**: 重启监控程序（停止当前线程并启动新线程）
 - **响应示例**:
 ```json
 {
@@ -89,9 +89,75 @@ API模式会同时启动：
 }
 ```
 
+### 7. 窗口管理测试（同步）
+- **URL**: `POST /test/window-management`
+- **描述**: 测试窗口管理功能（激活Trae IDE窗口 → 等待3秒 → 最小化窗口）
+- **用途**: 验证窗口操作功能，可在监控暂停期间使用
+- **响应示例**:
+```json
+{
+  "success": true,
+  "message": "窗口管理测试完成",
+  "steps": [
+    {"step": 1, "action": "激活窗口", "status": "success"},
+    {"step": 2, "action": "等待3秒", "status": "success"},
+    {"step": 3, "action": "最小化窗口", "status": "success"}
+  ]
+}
+```
+
+### 8. 窗口管理测试（异步）
+- **URL**: `POST /test/window-management-async`
+- **描述**: 在独立线程中异步执行窗口管理测试
+- **用途**: 不阻塞API响应，适合在监控暂停期间运行独立任务
+- **响应示例**:
+```json
+{
+  "success": true,
+  "message": "异步窗口管理测试已启动，请查看控制台输出"
+}
+```
+
 ## 使用示例
 
-### Python客户端示例
+### 基本控制流程
+```bash
+# 1. 启动API模式
+python enhanced_trae_ide_monitor.py --api
+
+# 2. 在另一个终端或程序中调用API
+curl -X GET http://localhost:5000/status
+curl -X POST http://localhost:5000/pause
+curl -X POST http://localhost:5000/test/window-management
+curl -X POST http://localhost:5000/resume
+```
+
+### 窗口管理测试场景
+```bash
+# 暂停监控
+curl -X POST http://localhost:5000/pause
+
+# 执行窗口管理测试
+curl -X POST http://localhost:5000/test/window-management
+
+# 恢复监控
+curl -X POST http://localhost:5000/resume
+```
+
+## 技术特性
+
+### 窗口管理测试功能
+- **同步测试**: 直接在API请求中完成窗口操作，返回详细的执行步骤
+- **异步测试**: 在独立线程中执行，不阻塞API响应，适合长时间运行的任务
+- **复用性**: 可在监控暂停期间独立使用窗口管理功能
+- **容错性**: 包含完整的错误处理和状态检查
+
+### 应用场景
+1. **调试窗口操作**: 验证窗口激活和最小化功能是否正常
+2. **独立RPA任务**: 在监控暂停期间执行其他自动化任务
+3. **系统集成**: 与其他程序协同工作，控制Trae IDE窗口状态
+
+## Python客户端示例
 
 ```python
 import requests
@@ -105,6 +171,14 @@ print(response.json())
 
 # 暂停监控
 response = requests.post(f'{base_url}/pause')
+print(response.json())
+
+# 执行窗口管理测试（同步）
+response = requests.post(f'{base_url}/test/window-management')
+print(response.json())
+
+# 执行窗口管理测试（异步）
+response = requests.post(f'{base_url}/test/window-management-async')
 print(response.json())
 
 # 恢复监控
@@ -124,6 +198,12 @@ curl http://127.0.0.1:5000/status
 
 # 暂停监控
 curl -X POST http://127.0.0.1:5000/pause
+
+# 执行窗口管理测试（同步）
+curl -X POST http://127.0.0.1:5000/test/window-management
+
+# 执行窗口管理测试（异步）
+curl -X POST http://127.0.0.1:5000/test/window-management-async
 
 # 恢复监控
 curl -X POST http://127.0.0.1:5000/resume
