@@ -10,7 +10,7 @@
   "detection_settings": {
     "match_threshold": 0.9,
     "target_button_image": "dd.PNG",
-    "busy_state_images": ["pp.PNG", "kk.PNG"],
+    "busy_state_images": ["pp.PNG", "kk.PNG", "cc.PNG"],
     "description": "图像检测相关配置，包括闲置状态检测和繁忙状态下的额外检测"
   },
   "position_settings": {

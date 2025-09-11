@@ -109,7 +109,7 @@ class EnhancedTraeIDEMonitor:
                 detection_settings = config.get('detection_settings', {})
                 self.match_threshold = detection_settings.get('match_threshold', 0.95)
                 self.target_button_path = detection_settings.get('target_button_image', 'dd.PNG')
-                self.busy_state_images = detection_settings.get('busy_state_images', ['pp.PNG', 'kk.PNG'])
+                self.busy_state_images = detection_settings.get('busy_state_images', ['pp.PNG', 'kk.PNG', 'cc.PNG'])
                 
                 # 位置设置
                 position_settings = config.get('position_settings', {})
@@ -140,7 +140,7 @@ class EnhancedTraeIDEMonitor:
         self.input_text = "继续你的使命"
         self.match_threshold = 0.95
         self.target_button_path = "dd.PNG"
-        self.busy_state_images = ['pp.PNG', 'kk.PNG']
+        self.busy_state_images = ['pp.PNG', 'kk.PNG', 'cc.PNG']
         self.input_box_x = 1670
         self.input_box_y = 844
         self.safe_mouse_x = 1720
@@ -910,7 +910,7 @@ class EnhancedTraeIDEMonitor:
     
     def find_busy_state_button(self):
         """
-        在繁忙状态下查找特定的按钮图像（pp.PNG或kk.PNG）（优化版）
+        在繁忙状态下查找特定的按钮图像（pp.PNG、kk.PNG或cc.PNG）（优化版）
         返回: (image_name, x, y) 或 None
         """
         try:
