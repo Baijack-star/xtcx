@@ -2,7 +2,7 @@
 
 ## 功能概述
 
-增强版监控程序现在支持在检测到Trae IDE处于繁忙状态时（即未检测到dd.PNG目标按钮），自动检测并点击特定的按钮图像（pp.PNG或kk.PNG）。
+增强版监控程序现在支持在检测到Trae IDE处于繁忙状态时（即未检测到dd.PNG目标按钮），自动检测并点击特定的按钮图像（pp.PNG、kk.PNG或cc.PNG）。
 
 ## 工作流程
 
@@ -11,7 +11,7 @@
    - 如果未检测到 → 进入繁忙状态处理流程
 
 2. **繁忙状态处理流程**：
-   - 自动检测屏幕上是否存在pp.PNG或kk.PNG按钮
+   - 自动检测屏幕上是否存在pp.PNG、kk.PNG或cc.PNG按钮
    - 如果检测到任一按钮 → 自动点击该按钮
    - 如果都未检测到 → 继续等待下次监控循环
 
@@ -24,7 +24,7 @@
   "detection_settings": {
     "match_threshold": 0.9,
     "target_button_image": "dd.PNG",
-    "busy_state_images": ["pp.PNG", "kk.PNG"],
+    "busy_state_images": ["pp.PNG", "kk.PNG", "cc.PNG"],
     "description": "图像检测相关配置，包括闲置状态检测和繁忙状态下的额外检测"
   }
 }
@@ -75,7 +75,7 @@ python enhanced_trae_ide_monitor.py
 
 ## 注意事项
 
-1. **图像匹配精度**：确保pp.PNG和kk.PNG图像与实际屏幕显示完全一致
+1. **图像匹配精度**：确保pp.PNG、kk.PNG和cc.PNG图像与实际屏幕显示完全一致
 2. **性能影响**：增加了额外的图像检测，可能略微增加CPU使用率
 3. **检测顺序**：按配置文件中的顺序检测，检测到第一个匹配的图像即停止
 4. **错误处理**：如果图像文件不存在或损坏，会显示警告但不影响主程序运行
@@ -84,7 +84,7 @@ python enhanced_trae_ide_monitor.py
 
 ### 问题：检测不到繁忙状态按钮
 **解决方案：**
-1. 检查pp.PNG和kk.PNG文件是否存在
+1. 检查pp.PNG、kk.PNG和cc.PNG文件是否存在
 2. 确认图像内容与屏幕显示一致
 3. 调整match_threshold阈值（降低到0.8或0.7）
 4. 使用测试工具验证检测功能
